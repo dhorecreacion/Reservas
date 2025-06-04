@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+    <html lang="es">
+    <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Reserva Sala SUM</title>
+    <link rel="icon" href="https://dhorecreacion.github.io/reservas/favicon-reservas.ico" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0057b7">
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyA0Vm3f1NY6OkBwYE3R_8kb_Zd-TuaLkpQ",
+        authDomain: "reservas-da528.firebaseapp.com",
+        databaseURL: "https://reservas-da528-default-rtdb.firebaseio.com",
+        projectId: "reservas-da528",
+        storageBucket: "reservas-da528.appspot.com",
+        messagingSenderId: "693494074553",
+        appId: "1:693494074553:web:42b174110c05cfbd4e9f68"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    </script>
+
+    <style>
+
+    * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+    }
+
+    body {
+    background: #f4f6f8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 1rem;
+    transition: background 0.3s ease;
+    color: #1f2937;
+    }
+
+    .card {
+    display: flex;
+    flex-wrap: wrap;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    max-width: 760px;
+    width: 100%;
+    overflow: hidden;
+    animation: fadeIn 0.6s ease-in-out;
+    font-size: 0.9rem;
+    }
+
+    @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+    }
+
+    .left-panel {
+    flex: 1 1 100%;
+    background: linear-gradient(135deg, #377dff, #1e40af);
+    padding: 1rem 1.2rem;
+    color: white;
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+    }
+
+    .left-panel h2 {
+    font-size: 1.2rem;
+    margin-bottom: 0.3rem;
+    }
+
+    .left-panel .info {
+    font-size: 0.7rem;
+    margin-bottom: 0.4rem;
+    }
+
+    .right-panel {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+    }
+
+    .booking-section {
+    flex: 1;
+    padding: 1rem 1.2rem;
+    background-color: #ffffff;
+    }
+
+    .form-section {
+    flex: 1;
+    padding: 1rem 1.2rem;
+    background-color: #f9fafb;
+    border-left: 1px solid #e5e7eb;
+    }
+
+    h3 {
+    font-size: 0.8rem;
+    color: #111827;
+    margin-bottom: 0.7rem;
+    }
+
+    .step {
+    font-weight: 600;
+    font-size: 0.7rem;
+    margin-top: 1rem;
+    margin-bottom: 0.3rem;
+    color: #0057b7;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    }
+
+    /* === Campos base === */
+    input,
+    select,
+    textarea {
+    width: 100%;
+    padding: 0.5rem 0.8rem;
+    font-size: 0.75rem;
+    font-family: 'Inter', sans-serif;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    margin-bottom: 0.9rem;
+    background: white;
+    color: #111827;
+    transition: border 0.3s, box-shadow 0.3s;
+    }
+
+    /* Select personalizado */
+    select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='%23111827' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 10px 6px;
+    }
+
+    /* === Estados === */
+    input:focus,
+    select:focus,
+    textarea:focus {
+    border-color: #0057b7;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 87, 183, 0.2);
+    }
+
+    /* Solo aplicar errores cuando el form tiene la clase was-validated */
+    .was-validated input:invalid,
+    .was-validated select:invalid {
+    border-color: #dc2626 !important;
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2) !important;
+    }
+
+    /* === Calendario === */
+    .calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0.8rem 0 0.6rem 0;
+    }
+
+    .calendar-header button {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    color: #0057b7;
+    cursor: pointer;
+    }
+
+    .calendar-header span {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #1f2937;
+    }
+
+    .calendar-container {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.3rem;
+    text-align: center;
+    }
+
+    .day-name {
+    font-size: 0.65rem;
+    color: #9ca3af;
+    }
+
+    .day-cell {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #e0e7ff;
+    color: #1e3a8a;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.3s ease;
+    }
+
+    .day-cell:hover {
+    background: #0057b7;
+    color: white;
+    transform: scale(1.05);
+    }
+
+    .day-cell.selected {
+    background: #2563eb;
+    color: white;
+    font-weight: 600;
+    }
+
+    .day-cell.disabled {
+    opacity: 0.3;
+    pointer-events: none;
+    }
+
+    /* === Horarios === */
+    #time-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(54px, 1fr));
+    gap: 0.5rem;
+    margin-top: 0.8rem;
+    margin-bottom: 1.2rem;
+    }
+
+    #time-container button {
+    padding: 0.45rem;
+    font-size: 0.7rem;
+    border: 1px solid #2563eb;
+    border-radius: 8px;
+    background-color: white;
+    color: #2563eb;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    }
+
+    #time-container button.selected-hour {
+    background-color: #2563eb;
+    color: white;
+    font-weight: bold;
+    border-color: #2563eb;
+    }
+
+    #time-container button.disabled-time {
+    background-color: #f3f4f6;
+    border: 1px solid #d1d5db;
+    color: #9ca3af;
+    cursor: not-allowed;
+    position: relative;
+    }
+
+    /* Tooltip */
+    #time-container button.disabled-time[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #2563eb;
+    color: #ffffff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    line-height: 1.3;
+    text-align: center;
+    white-space: normal;
+    max-width: 280px;
+    width: max-content;
+    min-width: 160px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 100;
+    }
+
+    /* Mostrar tooltip al pasar el cursor */
+    #time-container button.disabled-time:hover::after {
+    opacity: 1;
+    }
+
+    /* Cuando está muy a la izquierda */
+    #time-container button.disabled-time.left-tooltip::after {
+    left: 0;
+    transform: translateX(0);
+    }
+
+    /* Cuando está muy a la derecha */
+    #time-container button.disabled-time.right-tooltip::after {
+    right: 0;
+    left: auto;
+    transform: translateX(0);
+    }
+
+
+    /* === Botón enviar === */
+    .form-section button {
+    padding: 0.75rem;
+    font-size: 0.75rem;
+    border-radius: 10px;
+    border: none;
+    background-color: #3b82f6;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 6px 12px rgba(59, 130, 246, 0.2);
+    }
+
+    .form-section button:hover {
+    background-color: #2563eb;
+    transform: translateY(-1px);
+    }
+
+    .form-section button:active {
+    transform: scale(0.97);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    /* === Responsive === */
+    @media (max-width: 900px) {
+    .right-panel {
+        flex-direction: column;
+    }
+
+    .form-section {
+        border-left: none;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .left-panel,
+    .booking-section,
+    .form-section {
+        padding: 1rem;
+    }
+    }
+    </style>
+
+
+    </head>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js')
+            .then(reg => console.log('✅ Service Worker registrado:', reg.scope))
+            .catch(err => console.error('❌ Error al registrar el Service Worker:', err));
+        }
+    </script>
+    <body>
+    <div class="card">
+    <div class="left-panel">
+        <h2>Reservas de la Sala de Usos Mútiples (SUM)</h2>
+        <div class="info"><i class="fa-solid fa-clock"></i> Disponibilida de 6:00 a 22:00</div>
+        <div class="info"><i class="fa-solid fa-location-dot"></i> Sala de Usos Múltiples (SUM)</div>
+    </div>
+    <div class="right-panel">
+        <div class="booking-section">
+        <h3><i class="fa-solid fa-calendar-days"></i> Reserva tu horario</h3>
+        <div class="step"><i class="fa-solid fa-sliders"></i> Paso 1: Duración de la reunión</div>
+        <div class="duration-select">
+            <select id="duration">
+            <option value="" disabled selected hidden>Selecciona duración</option>
+            <option value="30">30 minutos</option>
+            <option value="60">1 hora</option>
+            <option value="120">2 horas</option>
+            </select>
+        </div>
+        <div class="step"><i class="fa-solid fa-calendar"></i> Paso 2: Selecciona el día</div>
+        <div class="calendar-header">
+            <button id="prev-month"><i class="fa-solid fa-chevron-left"></i></button>
+            <span id="month-label"></span>
+            <button id="next-month"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+        <div class="calendar-container" id="calendar-container"></div>
+        <div class="step"><i class="fa-solid fa-clock"></i> Paso 3: Selecciona hora de inicio</div>
+        <div id="time-container"></div>
+        </div>
+        <form class="form-section" id="booking-form">
+        <h3><i class="fa-solid fa-pencil-alt"></i> Detalles del evento</h3>
+        <input type="text" id="evento" placeholder="Título del evento" required />
+        <input type="text" id="nombre" placeholder="Tu nombre completo" required />
+        
+        <select id="area" required>
+            <option value="" disabled selected hidden>Área a la que perteneces</option>
+            <option value="Administración y Finanzas">Administración y Finanzas</option>
+            <option value="Asuntos Corporativos y Sostenibilidad">Asuntos Corporativos y Sostenibilidad</option>
+            <option value="Desarrollo Humano y Organizacional">Desarrollo Humano y Organizacional</option>
+            <option value="Exploraciones">Exploraciones</option>
+            <option value="Finanzas">Finanzas</option>
+            <option value="Geologia">Geologia</option>
+            <option value="Gerencia General">Gerencia General</option>
+            <option value="Laboratorio Quimico">Laboratorio Quimico</option>
+            <option value="Logistica">Logistica</option>
+            <option value="Mantenimiento">Mantenimiento</option>
+            <option value="Mina">Mina</option>
+            <option value="Planta">Planta</option>
+            <option value="Proyectos">Proyectos</option>
+            <option value="Servicios Tecnicos">Servicios Tecnicos</option>
+            <option value="SSOMA">SSOMA</option>
+        </select>
+
+
+        
+        <input type="email" id="correo" placeholder="Tu correo institucional" required />
+        <textarea rows="3" id="comentarios" placeholder="Comentarios (opcional)"></textarea>
+        <input type="hidden" id="selected-date" name="selected-date" />
+        <input type="hidden" id="selected-time" name="selected-time" />
+        <button type="submit"><i class="fa-solid fa-paper-plane"></i> Confirmar reserva</button>
+        </form>
+    </div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const calendarContainer = document.getElementById('calendar-container');
+    const monthLabel = document.getElementById('month-label');
+    const prevBtn = document.getElementById('prev-month');
+    const nextBtn = document.getElementById('next-month');
+    const selectedDateInput = document.getElementById('selected-date');
+    const selectedTimeInput = document.getElementById('selected-time');
+    const timeContainer = document.getElementById('time-container');
+    const durationSelect = document.getElementById('duration');
+    const now = new Date();
+
+    let currentYear = now.getFullYear();
+    let currentMonth = now.getMonth();
+    let selectedDay = null;
+
+    const timeSlots = [
+        '06:00', '06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
+        '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
+        '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
+        '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30'
+    ];
+    const dayNames = ['DOM.', 'LUN.', 'MAR.', 'MIÉ.', 'JUE.', 'VIE.', 'SÁB.'];
+    const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwQMDuhbOb_VwAO5E2X7kRx3ocV4zJW9gc1vbnFr6VZh3wL6i7Fsgj0nCs_BupHN09ftw/exec';
+
+    const maxFecha = new Date(now);
+    maxFecha.setMonth(maxFecha.getMonth() + 1);
+
+    function isTodayOrLater(year, month, day) {
+        const selected = new Date(year, month, day);
+        selected.setHours(0, 0, 0, 0);
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        return selected >= hoy;
+    }
+
+    function isWithinOneMonth(year, month, day) {
+        const fecha = new Date(year, month, day);
+        return fecha <= maxFecha;
+    }
+
+    function renderCalendar(year, month) {
+        calendarContainer.innerHTML = '';
+        monthLabel.textContent = new Date(year, month).toLocaleString('es-ES', { month: 'long', year: 'numeric' });
+
+        dayNames.forEach(day => {
+            const el = document.createElement('div');
+            el.className = 'day-name';
+            el.textContent = day;
+            calendarContainer.appendChild(el);
+        });
+
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const startDay = new Date(year, month, 1).getDay();
+
+        for (let i = 0; i < startDay; i++) {
+            calendarContainer.appendChild(document.createElement('div'));
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const cell = document.createElement('div');
+            cell.className = 'day-cell';
+            if (!isTodayOrLater(year, month, day) || !isWithinOneMonth(year, month, day)) {
+                cell.classList.add('disabled');
+            }
+
+            cell.textContent = day;
+
+            cell.addEventListener('click', () => {
+                if (cell.classList.contains('disabled')) return;
+                document.querySelectorAll('.day-cell').forEach(c => c.classList.remove('selected'));
+                cell.classList.add('selected');
+
+                selectedDay = { day, month, year };
+                selectedDateInput.value = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+
+                if (!durationSelect.value) return;
+
+                timeContainer.innerHTML = '<div style="grid-column: span 7; text-align:center;">Cargando...</div>';
+
+                fetch(`${WEBAPP_URL}?modo=verificar&fecha=${selectedDateInput.value}`)
+                    .then(res => res.text())
+                    .then(text => JSON.parse(text))
+                    .then(data => renderTimeSlots(data.ocupadas || []))
+                    .catch(error => {
+                        console.error('❌ Error al verificar disponibilidad:', error);
+                        alert('Error al verificar disponibilidad.');
+                        renderTimeSlots([]);
+                    });
+            });
+
+            calendarContainer.appendChild(cell);
+        }
+    }
+
+    function renderTimeSlots(reservas = []) {
+        timeContainer.innerHTML = '';
+        const duracionMinutos = parseInt(durationSelect.value || "0");
+        const bloquesDuracion = duracionMinutos / 30;
+        const horasBloqueadas = new Set();
+        const infoReservas = {};
+
+        reservas.forEach(reserva => {
+            horasBloqueadas.add(reserva.hora);
+            infoReservas[reserva.hora] = reserva.evento;
+        });
+
+        timeSlots.forEach((time, index) => {
+            const btn = document.createElement('button');
+            btn.textContent = time;
+
+            const isToday = selectedDay &&
+                selectedDay.day === now.getDate() &&
+                selectedDay.month === now.getMonth() &&
+                selectedDay.year === now.getFullYear();
+
+            const [hour, minute] = time.split(':').map(Number);
+            const currentHour = now.getHours();
+            const currentMin = now.getMinutes();
+            const isPast = isToday && (hour < currentHour || (hour === currentHour && minute <= currentMin));
+
+            let bloqueInvalido = false;
+            for (let i = 0; i < bloquesDuracion; i++) {
+                const siguiente = timeSlots[index + i];
+                if (!siguiente || horasBloqueadas.has(siguiente)) {
+                    bloqueInvalido = true;
+                    break;
+                }
+            }
+
+            if (isPast || bloqueInvalido) {
+                btn.classList.add('disabled-time');
+                btn.disabled = true;
+
+                const tooltip = infoReservas[time];
+                if (tooltip) {
+                    btn.setAttribute('data-tooltip', tooltip);
+                    btn.removeAttribute('title');
+
+                    const rect = btn.getBoundingClientRect();
+                    const containerRect = timeContainer.getBoundingClientRect();
+
+                    const isTooLeft = rect.left - containerRect.left < 80;
+                    const isTooRight = containerRect.right - rect.right < 80;
+
+                    if (isTooLeft) {
+                        btn.classList.add('left-tooltip');
+                    } else if (isTooRight) {
+                        btn.classList.add('right-tooltip');
+                    }
+                }
+            } else {
+                btn.onclick = () => {
+                    document.querySelectorAll('#time-container button').forEach(b => b.classList.remove('selected-hour'));
+                    btn.classList.add('selected-hour');
+                    selectedTimeInput.value = time;
+                };
+            }
+
+            timeContainer.appendChild(btn);
+        });
+    }
+
+    prevBtn.addEventListener('click', () => {
+        const anterior = new Date(currentYear, currentMonth - 1);
+        const limiteInferior = new Date(now.getFullYear(), now.getMonth());
+        if (anterior >= limiteInferior) {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar(currentYear, currentMonth);
+        }
+    });
+
+    nextBtn.addEventListener('click', () => {
+        const siguiente = new Date(currentYear, currentMonth + 1);
+        if (siguiente <= maxFecha) {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar(currentYear, currentMonth);
+        }
+    });
+
+    durationSelect.addEventListener('change', () => {
+        if (selectedDateInput.value) {
+            timeContainer.innerHTML = '<div style="grid-column: span 7; text-align:center;">Cargando...</div>';
+            fetch(`${WEBAPP_URL}?modo=verificar&fecha=${selectedDateInput.value}`)
+                .then(res => res.text())
+                .then(text => JSON.parse(text))
+                .then(data => renderTimeSlots(data.ocupadas || []))
+                .catch(error => {
+                    console.error('❌ Error al actualizar horarios:', error);
+                    alert('Error al actualizar horarios.');
+                    renderTimeSlots([]);
+                });
+        }
+    });
+
+    renderCalendar(currentYear, currentMonth);
+
+    document.getElementById('booking-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const form = e.target;
+    form.classList.add('was-validated');
+
+    const evento = document.getElementById('evento').value.trim();
+    const nombre = document.getElementById('nombre').value.trim();
+    const correo = document.getElementById('correo').value.trim();
+    const area = document.getElementById('area').value.trim();
+    const comentarios = document.getElementById('comentarios').value.trim();
+    const duracion = durationSelect.value;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!evento || evento.length < 3 || !nombre || nombre.length < 3 || !emailRegex.test(correo) || !area) {
+        return;
+    }
+
+    if (!selectedDateInput.value || !selectedTimeInput.value || !duracion || isNaN(parseInt(duracion))) {
+        alert('Por favor selecciona una fecha, hora y duración válidas.');
+        return;
+    }
+
+    const reservaData = {
+        fecha: selectedDateInput.value,
+        hora: selectedTimeInput.value,
+        duracion,
+        evento,
+        nombre,
+        correo,
+        comentarios,
+        area,
+        estado: "pendiente"
+    };
+
+    firebase.database().ref('solicitudes').push(reservaData)
+    .then(() => {
+        alert("✅ Solicitud enviada correctamente. Será revisada para su aprobación.");
+        location.reload();
+    })
+    .catch((error) => {
+        console.error("❌ Error al guardar la solicitud:", error);
+        alert("❌ Error al procesar la solicitud. Intenta nuevamente.");
+    });
+});
+
+});
+</script>
+
+    </body>
+    </html>
