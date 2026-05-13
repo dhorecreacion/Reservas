@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Panel de Aprobaciones – SUM</title>
+    <link rel="icon" href="../logo-dho.ico" />
+    <meta name="theme-color" content="#0053db">
+
+    <!-- Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-messaging-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCpzP_bzoMafbdCa-rdal3s6u7W8mjxqTM",
+            authDomain: "reservasum-ae0a2.firebaseapp.com",
+            databaseURL: "https://reservasum-ae0a2-default-rtdb.firebaseio.com",
+            projectId: "reservasum-ae0a2",
+            storageBucket: "reservasum-ae0a2.firebasestorage.app",
+            messagingSenderId: "163440079653",
+            appId: "1:163440079653:web:bd572e4b7c4db2889260cc"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const auth = firebase.auth();
+        let messaging = null;
+        try { messaging = firebase.messaging(); } catch (e) { console.warn('FCM no disponible', e); }
+    </script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-background": "#191b23",
+                        "on-surface": "#0f172a",
+                        "surface-container-high": "#e7e7f3",
+                        "outline-variant": "#c3c6d7",
+                        "surface-container-low": "#f3f3fe",
+                        "success": "#10b981",
+                        "inverse-on-surface": "#f0f0fb",
+                        "error": "#ef4444",
+                        "outline": "#737686",
+                        "on-surface-variant": "#434655",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container": "#ededf9",
+                        "background": "#faf8ff",
+                        "primary": "#004ac6",
+                        "primary-fixed": "#dbe1ff",
+                        "on-primary": "#ffffff",
+                    },
+                    fontFamily: {
+                        "label-sm": ["Inter"], "body-md": ["Inter"], "headline-lg": ["Inter"],
+                        "body-sm": ["Inter"], "headline-md": ["Inter"], "label-md": ["Inter"],
+                    },
+                    fontSize: {
+                        "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-lg": ["28px", {"lineHeight": "36px", "fontWeight": "600"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "fontWeight": "600"}],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+        .loading-overlay { display: none; }
+        .loading-overlay.active { display: flex; }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen">
+
+    <!-- Loading Overlay -->
+    <div id="loading" class="loading-overlay fixed inset-0 bg-white/80 backdrop-blur-sm items-center justify-center z-[100]">
+        <div class="text-center text-primary flex flex-col items-center">
+            <span class="material-symbols-outlined text-5xl animate-spin">progress_activity</span>
+            <p class="mt-4 font-bold text-on-surface">Cargando datos...</p>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- LOGIN -->
+    <!-- ============================================== -->
+
+    <div id="loginContainer" class="flex flex-col items-center justify-center min-h-screen px-4">
+        <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl w-full max-w-md border border-outline-variant space-y-6">
+            <div class="text-center">
+                <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-primary/10 text-primary mx-auto flex items-center justify-center mb-4">
+                    <span class="material-symbols-outlined text-3xl sm:text-4xl">shield_person</span>
+                </div>
+                <h1 class="text-xl sm:text-headline-lg text-on-surface font-bold">Panel de Aprobaciones</h1>
+                <p class="text-body-sm text-on-surface-variant mt-2">Gestión de reservas SUM</p>
+            </div>
+            <div class="space-y-4">
+                <input type="email" id="username" placeholder="Correo de administrador"
+                    class="w-full bg-slate-50 border-0 border-b-2 border-outline-variant focus:ring-0 focus:border-primary transition-all py-3 px-4 rounded-t-lg" />
+                <input type="password" id="password" placeholder="Contraseña"
+                    class="w-full bg-slate-50 border-0 border-b-2 border-outline-variant focus:ring-0 focus:border-primary transition-all py-3 px-4 rounded-t-lg" />
+                <p id="error" class="text-error text-label-sm hidden">Credenciales incorrectas o usuario no válido.</p>
+                <button onclick="login()"
+                    class="w-full py-3 bg-primary text-on-primary rounded-xl font-bold shadow-lg shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                    Iniciar sesión
+                </button>
+            </div>
+            <div class="text-center">
+                <a href="../index.html" class="text-label-sm text-primary hover:underline flex items-center justify-center gap-1">
+                    <span class="material-symbols-outlined text-[14px]">arrow_back</span> Volver a Reservas
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- CAMBIO DE CONTRASEÑA (primer ingreso) -->
+    <!-- ============================================== -->
+    <div id="changePasswordContainer" class="hidden flex flex-col items-center justify-center min-h-screen px-4">
+        <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl w-full max-w-md border border-outline-variant space-y-6">
+            <div class="text-center">
+                <div class="w-14 h-14 rounded-xl bg-primary/10 text-primary mx-auto flex items-center justify-center mb-4">
+                    <span class="material-symbols-outlined text-3xl">lock_reset</span>
+                </div>
+                <h1 class="text-xl sm:text-headline-lg text-on-surface font-bold">Establece tu contraseña</h1>
+                <p class="text-body-sm text-on-surface-variant mt-2">Es tu primer ingreso. Por seguridad crea una contraseña personal.</p>
+            </div>
+            <div class="space-y-4">
+                <div class="relative">
+                    <input type="password" id="newPassword" placeholder="Nueva contraseña (mín. 8 caracteres)"
+                        class="w-full bg-slate-50 border-0 border-b-2 border-outline-variant focus:ring-0 focus:border-primary transition-all py-3 px-4 rounded-t-lg pr-12" />
+                    <button type="button" onclick="togglePass('newPassword', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface">
+                        <span class="material-symbols-outlined text-[20px]">visibility</span>
+                    </button>
+                </div>
+                <div class="relative">
+                    <input type="password" id="confirmPassword" placeholder="Confirmar contraseña"
+                        class="w-full bg-slate-50 border-0 border-b-2 border-outline-variant focus:ring-0 focus:border-primary transition-all py-3 px-4 rounded-t-lg pr-12" />
+                    <button type="button" onclick="togglePass('confirmPassword', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface">
+                        <span class="material-symbols-outlined text-[20px]">visibility</span>
+                    </button>
+                </div>
+                <!-- Indicador de fortaleza -->
+                <div id="strengthBar" class="hidden space-y-1">
+                    <div class="h-1.5 bg-outline-variant rounded-full overflow-hidden">
+                        <div id="strengthFill" class="h-full rounded-full transition-all duration-300 w-0"></div>
+                    </div>
+                    <p id="strengthLabel" class="text-[11px] text-outline"></p>
+                </div>
+                <p id="changePasswordError" class="text-error text-label-sm hidden"></p>
+                <button onclick="cambiarContrasena()"
+                    class="w-full py-3 bg-primary text-on-primary rounded-xl font-bold shadow-lg shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                    Confirmar nueva contraseña
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- DASHBOARD -->
+    <!-- ============================================== -->
+    <div id="dashboard" class="hidden min-h-screen bg-slate-50 p-4 sm:p-6 md:p-12">
+        <div class="max-w-6xl mx-auto space-y-6 sm:space-y-8">
+
+            <!-- Header -->
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-outline-variant gap-3">
+                <div>
+                    <h1 class="text-lg sm:text-headline-lg font-bold text-on-surface">Panel de Administración</h1>
+                    <p class="text-body-sm text-on-surface-variant">Gestión de solicitudes para la sala SUM.</p>
+                </div>
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <a href="../index.html"
+                        class="px-3 py-2 text-on-surface-variant hover:bg-surface-container rounded-lg font-medium transition-colors flex items-center gap-1.5 text-sm">
+                        <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+                        <span class="hidden sm:inline">Volver</span>
+                    </a>
+                    <button id="btnLogout"
+                        class="px-3 py-2 bg-error/10 text-error hover:bg-error hover:text-white rounded-lg font-bold transition-all flex items-center gap-1.5 text-sm">
+                        <span class="material-symbols-outlined text-[18px]">logout</span> Salir
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex justify-center gap-2 border-b border-outline-variant pb-4">
+                <button class="tab-btn active px-3 sm:px-6 py-2 rounded-full font-bold text-xs sm:text-sm bg-primary text-on-primary shadow-md transition-all" data-tab="pendiente">Pendientes</button>
+                <button class="tab-btn px-3 sm:px-6 py-2 rounded-full font-medium text-xs sm:text-sm bg-surface-container text-on-surface-variant hover:bg-outline-variant transition-all" data-tab="aprobado">Aprobadas</button>
+                <button class="tab-btn px-3 sm:px-6 py-2 rounded-full font-medium text-xs sm:text-sm bg-surface-container text-on-surface-variant hover:bg-outline-variant transition-all" data-tab="rechazado">Rechazadas</button>
+            </div>
+
+            <!-- Tarjetas -->
+            <div id="contenedor" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                <!-- Inyectado por JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- JAVASCRIPT -->
+    <!-- ============================================== -->
+    <script>
+        const APPS_URL = 'https://script.google.com/macros/s/AKfycbxv4o9FsMHQMh23PpAVOGTD2jaCVgfLIpEB-MBwZLRZsGKsCsXxscJfwfI90sYtOrk97w/exec';
+
+        function login() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            const err = document.getElementById('error');
+            err.classList.add('hidden');
+
+            auth.signInWithEmailAndPassword(user, pass)
+                .then(cred => {
+                    document.getElementById('loginContainer').classList.add('hidden');
+                    verificarPrimerIngreso(cred.user);
+                })
+                .catch(e => {
+                    console.error('Auth error:', e.code);
+                    err.classList.remove('hidden');
+                });
+        }
+
+        function verificarPrimerIngreso(user) {
+            db.ref('admins/' + user.uid + '/passwordChanged').once('value', snap => {
+                if (snap.val() === true) {
+                    mostrarDashboard();
+                } else {
+                    document.getElementById('changePasswordContainer').classList.remove('hidden');
+                    document.getElementById('newPassword').addEventListener('input', actualizarFortaleza);
+                }
+            });
+        }
+
+        function togglePass(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const isHidden = input.type === 'password';
+            input.type = isHidden ? 'text' : 'password';
+            btn.querySelector('.material-symbols-outlined').textContent = isHidden ? 'visibility_off' : 'visibility';
+        }
+
+        function actualizarFortaleza() {
+            const val = document.getElementById('newPassword').value;
+            const bar = document.getElementById('strengthBar');
+            const fill = document.getElementById('strengthFill');
+            const label = document.getElementById('strengthLabel');
+            if (!val) { bar.classList.add('hidden'); return; }
+            bar.classList.remove('hidden');
+            let score = 0;
+            if (val.length >= 8) score++;
+            if (/[A-Z]/.test(val)) score++;
+            if (/[0-9]/.test(val)) score++;
+            if (/[^A-Za-z0-9]/.test(val)) score++;
+            const niveles = [
+                { w: 'w-1/4', color: 'bg-error',   text: 'Muy débil' },
+                { w: 'w-2/4', color: 'bg-amber-400', text: 'Débil' },
+                { w: 'w-3/4', color: 'bg-yellow-400', text: 'Aceptable' },
+                { w: 'w-full', color: 'bg-success',  text: 'Fuerte' },
+            ];
+            const n = niveles[score - 1] || niveles[0];
+            fill.className = `h-full rounded-full transition-all duration-300 ${n.w} ${n.color}`;
+            label.textContent = n.text;
+        }
+
+        function cambiarContrasena() {
+            const newPass = document.getElementById('newPassword').value;
+            const confirmPass = document.getElementById('confirmPassword').value;
+            const errEl = document.getElementById('changePasswordError');
+            errEl.classList.add('hidden');
+
+            if (newPass.length < 8) {
+                errEl.textContent = 'La contraseña debe tener al menos 8 caracteres.';
+                errEl.classList.remove('hidden');
+                return;
+            }
+            if (newPass !== confirmPass) {
+                errEl.textContent = 'Las contraseñas no coinciden.';
+                errEl.classList.remove('hidden');
+                return;
+            }
+
+            const user = auth.currentUser;
+            document.getElementById('loading').classList.add('active');
+
+            user.updatePassword(newPass)
+                .then(() => db.ref('admins/' + user.uid + '/passwordChanged').set(true))
+                .then(() => {
+                    document.getElementById('changePasswordContainer').classList.add('hidden');
+                    document.getElementById('loading').classList.remove('active');
+                    mostrarDashboard();
+                })
+                .catch(e => {
+                    document.getElementById('loading').classList.remove('active');
+                    errEl.textContent = e.code === 'auth/requires-recent-login'
+                        ? 'Vuelve a iniciar sesión e intenta de nuevo.'
+                        : 'Error: ' + e.message;
+                    errEl.classList.remove('hidden');
+                });
+        }
+
+        function mostrarDashboard() {
+            document.getElementById('dashboard').classList.remove('hidden');
+            registrarTokenAdmin();
+            cargarSolicitudes();
+        }
+
+        async function registrarTokenAdmin() {
+            if (!messaging) return;
+            try {
+                const permiso = await Notification.requestPermission();
+                if (permiso !== 'granted') return;
+                const registration = await navigator.serviceWorker.register('../firebase-messaging-sw.js');
+                const token = await messaging.getToken({
+                    vapidKey: 'BCAHcXQuGOJPEPm0z0TqtUugBEYReRVJqCS17Z-GxqMTWBHhMJr5r4WwZJhv1FpsLQ47sota3HjnjqZMLCzHqWw',
+                    serviceWorkerRegistration: registration
+                });
+                if (token) await db.ref('tokensAdmins/' + token).set(true);
+                messaging.onMessage(payload => {
+                    alert(`Nueva reserva: ${payload.notification?.title} – ${payload.notification?.body}`);
+                });
+            } catch (e) { console.error('FCM:', e); }
+        }
+
+        function crearTarjetaSolicitud(id, s, estado) {
+            const div = document.createElement('div');
+            div.className = 'bg-white p-5 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-3 hover:shadow-md transition-shadow';
+
+            const badgeClass = estado === 'pendiente' ? 'bg-primary-fixed text-primary'
+                             : estado === 'aprobado'  ? 'bg-success/20 text-success'
+                             : 'bg-error/20 text-error';
+
+            div.innerHTML = `
+                <div class="flex justify-between items-start gap-2">
+                    <h3 class="font-bold text-on-surface text-lg leading-tight">${s.evento}</h3>
+                    <span class="shrink-0 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${badgeClass}">${estado}</span>
+                </div>
+                <div class="space-y-1.5 text-body-sm text-on-surface-variant">
+                    <p class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] shrink-0">calendar_today</span> <strong>${s.fecha}</strong> a las <strong>${s.hora}</strong></p>
+                    <p class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] shrink-0">person</span> <span class="truncate">${s.nombre}</span></p>
+                    <p class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] shrink-0">work</span> <span class="truncate">${s.area || 'N/A'}</span></p>
+                    <p class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] shrink-0">mail</span> <span class="truncate text-xs">${s.correo}</span></p>
+                </div>
+                ${s.comentarios ? `<div class="p-3 bg-surface-container-low rounded-lg text-[13px] text-on-surface-variant italic">"${s.comentarios}"</div>` : ''}
+                ${estado === 'rechazado' && s.motivoRechazo ? `<div class="p-3 bg-error/10 rounded-lg text-[13px] text-error font-medium">Motivo: ${s.motivoRechazo}</div>` : ''}
+            `;
+
+            if (estado === 'pendiente') {
+                const acciones = document.createElement('div');
+                acciones.className = 'mt-auto pt-4 border-t border-outline-variant flex gap-3';
+                acciones.innerHTML = `
+                    <button class="btn-aprobar flex-1 py-3 bg-success text-white rounded-xl font-bold hover:bg-emerald-600 active:scale-95 transition-all flex items-center justify-center gap-2 text-sm">
+                        <span class="material-symbols-outlined text-[18px]">check</span> Aprobar
+                    </button>
+                    <button class="btn-rechazar flex-1 py-3 bg-error/10 text-error rounded-xl font-bold hover:bg-error hover:text-white active:scale-95 transition-all flex items-center justify-center gap-2 text-sm">
+                        <span class="material-symbols-outlined text-[18px]">close</span> Rechazar
+                    </button>
+                `;
+                acciones.querySelector('.btn-aprobar').onclick = () => aprobarSolicitud(id, s);
+                acciones.querySelector('.btn-rechazar').onclick = () => rechazarSolicitud(id);
+                div.appendChild(acciones);
+            }
+            return div;
+        }
+
+        function cargarSolicitudes() {
+            const contenedor = document.getElementById('contenedor');
+            const loading = document.getElementById('loading');
+            contenedor.innerHTML = '';
+            loading.classList.add('active');
+
+            db.ref('solicitudes').once('value', snapshot => {
+                loading.classList.remove('active');
+                const datos = snapshot.val() || {};
+                const estadoActivo = document.querySelector('.tab-btn.active').dataset.tab;
+
+                const filtradas = Object.entries(datos)
+                    .filter(([, s]) => s.estado === estadoActivo)
+                    .map(([id, s]) => ({ id, ...s }))
+                    .sort((a, b) => new Date(`${a.fecha} ${a.hora}`) - new Date(`${b.fecha} ${b.hora}`));
+
+                if (filtradas.length === 0) {
+                    contenedor.innerHTML = `
+                        <div class="col-span-full text-center py-12 text-on-surface-variant flex flex-col items-center gap-2">
+                            <span class="material-symbols-outlined text-4xl opacity-40">inbox</span>
+                            <p>No hay solicitudes ${estadoActivo}s.</p>
+                        </div>`;
+                } else {
+                    filtradas.forEach(s => contenedor.appendChild(crearTarjetaSolicitud(s.id, s, estadoActivo)));
+                }
+            });
+        }
+
+        function aprobarSolicitud(id, s) {
+            if (!confirm(`¿Aprobar reserva de ${s.nombre} para el ${s.fecha}?`)) return;
+            document.getElementById('loading').classList.add('active');
+            db.ref(`solicitudes/${id}/estado`).set('aprobado');
+
+            const url = `${APPS_URL}?modo=crear&fecha=${s.fecha}&hora=${s.hora}&duracion=${s.duracion}` +
+                `&evento=${encodeURIComponent(s.evento)}&nombre=${encodeURIComponent(s.nombre)}` +
+                `&correo=${s.correo}&comentarios=${encodeURIComponent(s.comentarios || '')}` +
+                `&area=${encodeURIComponent(s.area)}`;
+
+            fetch(url).then(r => r.json())
+                .then(() => {
+                    alert('✅ Reserva aprobada y evento creado en Google Calendar');
+                    cargarSolicitudes();
+                })
+                .catch(e => {
+                    alert('Error conectando con Calendar: ' + e);
+                    document.getElementById('loading').classList.remove('active');
+                });
+        }
+
+        function rechazarSolicitud(id) {
+            const motivo = prompt('Ingrese el motivo del rechazo:');
+            if (motivo === null) return;
+            document.getElementById('loading').classList.add('active');
+
+            db.ref(`solicitudes/${id}`).update({ estado: 'rechazado', motivoRechazo: motivo })
+                .then(() => {
+                    alert('❌ Reserva rechazada');
+                    fetch(`${APPS_URL}?modo=rechazar&id=${id}&motivo=${encodeURIComponent(motivo)}`).catch(console.error);
+                    cargarSolicitudes();
+                })
+                .catch(err => {
+                    alert('Error al rechazar: ' + err.message);
+                    document.getElementById('loading').classList.remove('active');
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('btnLogout').addEventListener('click', () => {
+                auth.signOut().then(() => {
+                    document.getElementById('loginContainer').classList.remove('hidden');
+                    document.getElementById('dashboard').classList.add('hidden');
+                    document.getElementById('changePasswordContainer').classList.add('hidden');
+                    document.getElementById('contenedor').innerHTML = '';
+                    document.getElementById('username').value = '';
+                    document.getElementById('password').value = '';
+                    document.getElementById('newPassword').value = '';
+                    document.getElementById('confirmPassword').value = '';
+                    document.getElementById('strengthBar').classList.add('hidden');
+                }).catch(err => alert('Error al cerrar sesión: ' + err.message));
+            });
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tab-btn').forEach(b => {
+                        b.classList.remove('active', 'bg-primary', 'text-on-primary', 'shadow-md');
+                        b.classList.add('bg-surface-container', 'text-on-surface-variant');
+                    });
+                    btn.classList.remove('bg-surface-container', 'text-on-surface-variant');
+                    btn.classList.add('active', 'bg-primary', 'text-on-primary', 'shadow-md');
+                    cargarSolicitudes();
+                });
+            });
+        });
+    </script>
+</body>
+</html>
