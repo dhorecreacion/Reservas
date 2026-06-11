@@ -163,6 +163,10 @@
                     class="w-full py-3 bg-primary text-on-primary rounded-xl font-bold shadow-lg shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all">
                     Confirmar nueva contraseña
                 </button>
+                <button onclick="cancelarCambio()" type="button"
+                    class="w-full py-3 rounded-xl font-medium text-on-surface-variant hover:bg-surface-container transition-all text-sm">
+                    Cancelar — usar otra cuenta
+                </button>
             </div>
         </div>
     </div>
@@ -212,6 +216,19 @@
     <script>
         const APPS_URL = 'https://script.google.com/macros/s/AKfycbxv4o9FsMHQMh23PpAVOGTD2jaCVgfLIpEB-MBwZLRZsGKsCsXxscJfwfI90sYtOrk97w/exec';
 
+        auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                document.getElementById('loginContainer').classList.add('hidden');
+                verificarPrimerIngreso(user);
+            } else {
+                document.getElementById('loginContainer').classList.remove('hidden');
+                document.getElementById('changePasswordContainer').classList.add('hidden');
+                document.getElementById('dashboard').classList.add('hidden');
+            }
+        });
+
         function login() {
             const user = document.getElementById('username').value;
             const pass = document.getElementById('password').value;
@@ -219,10 +236,6 @@
             err.classList.add('hidden');
 
             auth.signInWithEmailAndPassword(user, pass)
-                .then(cred => {
-                    document.getElementById('loginContainer').classList.add('hidden');
-                    verificarPrimerIngreso(cred.user);
-                })
                 .catch(e => {
                     console.error('Auth error:', e.code);
                     err.classList.remove('hidden');
@@ -230,14 +243,44 @@
         }
 
         function verificarPrimerIngreso(user) {
-            db.ref('admins/' + user.uid + '/passwordChanged').once('value', snap => {
-                if (snap.val() === true) {
+            db.ref('admins/' + user.uid).once('value', snap => {
+                const datos = snap.val();
+                if (datos === null) {
+                    db.ref('admins/' + user.uid).set({ passwordChanged: false })
+                        .then(() => {
+                            document.getElementById('changePasswordContainer').classList.remove('hidden');
+                            document.getElementById('newPassword').addEventListener('input', actualizarFortaleza);
+                        })
+                        .catch(() => {
+                            const err = document.getElementById('error');
+                            err.textContent = 'Error al registrar usuario. Intenta nuevamente.';
+                            err.classList.remove('hidden');
+                            document.getElementById('loginContainer').classList.remove('hidden');
+                            auth.signOut();
+                        });
+                    return;
+                }
+                if (datos.passwordChanged === true) {
                     mostrarDashboard();
                 } else {
                     document.getElementById('changePasswordContainer').classList.remove('hidden');
                     document.getElementById('newPassword').addEventListener('input', actualizarFortaleza);
                 }
+            }, () => {
+                const err = document.getElementById('error');
+                err.textContent = 'Error al verificar usuario. Intenta nuevamente.';
+                err.classList.remove('hidden');
+                document.getElementById('loginContainer').classList.remove('hidden');
+                auth.signOut();
             });
+        }
+
+        function cancelarCambio() {
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+            document.getElementById('strengthBar').classList.add('hidden');
+            document.getElementById('changePasswordError').classList.add('hidden');
+            auth.signOut();
         }
 
         function togglePass(inputId, btn) {
@@ -395,13 +438,19 @@
                 } else {
                     filtradas.forEach(s => contenedor.appendChild(crearTarjetaSolicitud(s.id, s, estadoActivo)));
                 }
+            }, err => {
+                loading.classList.remove('active');
+                contenedor.innerHTML = `
+                    <div class="col-span-full text-center py-12 text-error flex flex-col items-center gap-2">
+                        <span class="material-symbols-outlined text-4xl">error</span>
+                        <p>Error al cargar solicitudes. Intenta recargar la página.</p>
+                    </div>`;
             });
         }
 
         function aprobarSolicitud(id, s) {
             if (!confirm(`¿Aprobar reserva de ${s.nombre} para el ${s.fecha}?`)) return;
             document.getElementById('loading').classList.add('active');
-            db.ref(`solicitudes/${id}/estado`).set('aprobado');
 
             const url = `${APPS_URL}?modo=crear&fecha=${s.fecha}&hora=${s.hora}&duracion=${s.duracion}` +
                 `&evento=${encodeURIComponent(s.evento)}&nombre=${encodeURIComponent(s.nombre)}` +
@@ -409,12 +458,14 @@
                 `&area=${encodeURIComponent(s.area)}`;
 
             fetch(url).then(r => r.json())
+                .then(() => db.ref(`solicitudes/${id}/estado`).set('aprobado'))
                 .then(() => {
                     alert('✅ Reserva aprobada y evento creado en Google Calendar');
                     cargarSolicitudes();
                 })
                 .catch(e => {
-                    alert('Error conectando con Calendar: ' + e);
+                    console.error('❌ Error al aprobar:', e);
+                    alert('Error al crear el evento en Calendar. La reserva no fue aprobada.');
                     document.getElementById('loading').classList.remove('active');
                 });
         }
@@ -422,6 +473,7 @@
         function rechazarSolicitud(id) {
             const motivo = prompt('Ingrese el motivo del rechazo:');
             if (motivo === null) return;
+            if (!motivo.trim()) { alert('Debe ingresar un motivo para rechazar la solicitud.'); return; }
             document.getElementById('loading').classList.add('active');
 
             db.ref(`solicitudes/${id}`).update({ estado: 'rechazado', motivoRechazo: motivo })
