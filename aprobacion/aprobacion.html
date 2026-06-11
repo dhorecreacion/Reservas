@@ -7,19 +7,16 @@
     <link rel="icon" href="../logo-dho.ico" />
     <meta name="theme-color" content="#0053db">
 
-    <!-- Material Symbols -->
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-    <!-- Google Fonts: Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 
-    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-messaging-compat.js"></script>
 
     <script>
-        const firebaseConfig = {
+        firebase.initializeApp({
             apiKey: "AIzaSyCpzP_bzoMafbdCa-rdal3s6u7W8mjxqTM",
             authDomain: "reservasum-ae0a2.firebaseapp.com",
             databaseURL: "https://reservasum-ae0a2-default-rtdb.firebaseio.com",
@@ -27,15 +24,13 @@
             storageBucket: "reservasum-ae0a2.firebasestorage.app",
             messagingSenderId: "163440079653",
             appId: "1:163440079653:web:bd572e4b7c4db2889260cc"
-        };
-        firebase.initializeApp(firebaseConfig);
+        });
         const db = firebase.database();
         const auth = firebase.auth();
         let messaging = null;
         try { messaging = firebase.messaging(); } catch (e) { console.warn('FCM no disponible', e); }
     </script>
 
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script>
         tailwind.config = {
@@ -43,22 +38,14 @@
             theme: {
                 extend: {
                     colors: {
-                        "on-background": "#191b23",
-                        "on-surface": "#0f172a",
-                        "surface-container-high": "#e7e7f3",
-                        "outline-variant": "#c3c6d7",
-                        "surface-container-low": "#f3f3fe",
-                        "success": "#10b981",
-                        "inverse-on-surface": "#f0f0fb",
-                        "error": "#ef4444",
-                        "outline": "#737686",
-                        "on-surface-variant": "#434655",
-                        "surface-container-lowest": "#ffffff",
-                        "surface-container": "#ededf9",
-                        "background": "#faf8ff",
-                        "primary": "#004ac6",
-                        "primary-fixed": "#dbe1ff",
-                        "on-primary": "#ffffff",
+                        "on-background": "#191b23", "on-surface": "#0f172a",
+                        "surface-container-high": "#e7e7f3", "outline-variant": "#c3c6d7",
+                        "surface-container-low": "#f3f3fe", "success": "#10b981",
+                        "inverse-on-surface": "#f0f0fb", "error": "#ef4444",
+                        "outline": "#737686", "on-surface-variant": "#434655",
+                        "surface-container-lowest": "#ffffff", "surface-container": "#ededf9",
+                        "background": "#faf8ff", "primary": "#004ac6",
+                        "primary-fixed": "#dbe1ff", "on-primary": "#ffffff",
                     },
                     fontFamily: {
                         "label-sm": ["Inter"], "body-md": ["Inter"], "headline-lg": ["Inter"],
@@ -80,22 +67,49 @@
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
         .loading-overlay { display: none; }
         .loading-overlay.active { display: flex; }
+        .card-selected { outline: 2px solid #004ac6; outline-offset: 2px; }
     </style>
 </head>
 <body class="bg-background text-on-background min-h-screen">
 
-    <!-- Loading Overlay -->
+    <!-- Loading -->
     <div id="loading" class="loading-overlay fixed inset-0 bg-white/80 backdrop-blur-sm items-center justify-center z-[100]">
         <div class="text-center text-primary flex flex-col items-center">
             <span class="material-symbols-outlined text-5xl animate-spin">progress_activity</span>
-            <p class="mt-4 font-bold text-on-surface">Cargando datos...</p>
+            <p class="mt-4 font-bold text-on-surface" id="loadingText">Cargando datos...</p>
         </div>
     </div>
 
-    <!-- ============================================== -->
-    <!-- LOGIN -->
-    <!-- ============================================== -->
+    <!-- Modal Rechazo -->
+    <div id="rechazarModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[200] p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-error/10 text-error flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined">event_busy</span>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-on-surface">Rechazar reserva(s)</h3>
+                    <p class="text-xs text-on-surface-variant">El motivo se enviará al solicitante por correo.</p>
+                </div>
+            </div>
 
+            <div class="space-y-3 max-h-72 overflow-y-auto pr-1" id="rechazarLista"></div>
+            <p id="rechazarMotivoError" class="text-error text-xs hidden">Todos los motivos son requeridos.</p>
+
+            <div class="flex gap-3 pt-1">
+                <button onclick="cerrarModalRechazo()"
+                    class="flex-1 py-2.5 rounded-xl font-medium text-on-surface-variant hover:bg-surface-container transition-all text-sm">
+                    Cancelar
+                </button>
+                <button onclick="confirmarRechazo()"
+                    class="flex-1 py-2.5 bg-error text-white rounded-xl font-bold hover:bg-red-700 active:scale-95 transition-all text-sm flex items-center justify-center gap-1">
+                    <span class="material-symbols-outlined text-[16px]">close</span> Confirmar rechazo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOGIN -->
     <div id="loginContainer" class="flex flex-col items-center justify-center min-h-screen px-4">
         <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl w-full max-w-md border border-outline-variant space-y-6">
             <div class="text-center">
@@ -124,9 +138,7 @@
         </div>
     </div>
 
-    <!-- ============================================== -->
-    <!-- CAMBIO DE CONTRASEÑA (primer ingreso) -->
-    <!-- ============================================== -->
+    <!-- CAMBIO DE CONTRASEÑA -->
     <div id="changePasswordContainer" class="hidden flex flex-col items-center justify-center min-h-screen px-4">
         <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl w-full max-w-md border border-outline-variant space-y-6">
             <div class="text-center">
@@ -151,7 +163,6 @@
                         <span class="material-symbols-outlined text-[20px]">visibility</span>
                     </button>
                 </div>
-                <!-- Indicador de fortaleza -->
                 <div id="strengthBar" class="hidden space-y-1">
                     <div class="h-1.5 bg-outline-variant rounded-full overflow-hidden">
                         <div id="strengthFill" class="h-full rounded-full transition-all duration-300 w-0"></div>
@@ -171,9 +182,7 @@
         </div>
     </div>
 
-    <!-- ============================================== -->
     <!-- DASHBOARD -->
-    <!-- ============================================== -->
     <div id="dashboard" class="hidden min-h-screen bg-slate-50 p-4 sm:p-6 md:p-12">
         <div class="max-w-6xl mx-auto space-y-6 sm:space-y-8">
 
@@ -198,25 +207,58 @@
 
             <!-- Tabs -->
             <div class="flex justify-center gap-2 border-b border-outline-variant pb-4">
-                <button class="tab-btn active px-3 sm:px-6 py-2 rounded-full font-bold text-xs sm:text-sm bg-primary text-on-primary shadow-md transition-all" data-tab="pendiente">Pendientes</button>
-                <button class="tab-btn px-3 sm:px-6 py-2 rounded-full font-medium text-xs sm:text-sm bg-surface-container text-on-surface-variant hover:bg-outline-variant transition-all" data-tab="aprobado">Aprobadas</button>
-                <button class="tab-btn px-3 sm:px-6 py-2 rounded-full font-medium text-xs sm:text-sm bg-surface-container text-on-surface-variant hover:bg-outline-variant transition-all" data-tab="rechazado">Rechazadas</button>
+                <button class="tab-btn active px-3 sm:px-6 py-2 rounded-full font-bold text-xs sm:text-sm bg-primary text-on-primary shadow-md transition-all flex items-center gap-1.5" data-tab="pendiente">
+                    Pendientes <span class="tab-count bg-white/30 text-xs px-1.5 py-0.5 rounded-full hidden">0</span>
+                </button>
+                <button class="tab-btn px-3 sm:px-6 py-2 rounded-full font-medium text-xs sm:text-sm bg-surface-container text-on-surface-variant hover:bg-outline-variant transition-all flex items-center gap-1.5" data-tab="aprobado">
+                    Aprobadas <span class="tab-count bg-success/20 text-success text-xs px-1.5 py-0.5 rounded-full hidden">0</span>
+                </button>
+                <button class="tab-btn px-3 sm:px-6 py-2 rounded-full font-medium text-xs sm:text-sm bg-surface-container text-on-surface-variant hover:bg-outline-variant transition-all flex items-center gap-1.5" data-tab="rechazado">
+                    Rechazadas <span class="tab-count bg-error/20 text-error text-xs px-1.5 py-0.5 rounded-full hidden">0</span>
+                </button>
+            </div>
+
+            <!-- Barra de selección masiva -->
+            <div id="bulkBar" class="hidden sticky top-4 z-40 bg-white border border-primary/30 rounded-2xl shadow-lg p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="selectAllCheck" onchange="toggleSelectAll(this.checked)"
+                            class="w-4 h-4 accent-primary rounded cursor-pointer">
+                        <span id="bulkCount" class="text-sm font-semibold text-on-surface">0 seleccionadas</span>
+                    </label>
+                    <button onclick="deseleccionarTodo()" class="text-xs text-on-surface-variant hover:text-on-surface underline transition-all">
+                        Limpiar
+                    </button>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="rechazarSeleccionadas()"
+                        class="px-3 sm:px-4 py-2 text-xs sm:text-sm bg-error/10 text-error hover:bg-error hover:text-white rounded-xl font-bold transition-all flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[16px]">close</span> Rechazar
+                    </button>
+                    <button onclick="aprobarSeleccionadas()"
+                        class="px-3 sm:px-4 py-2 text-xs sm:text-sm bg-success text-white hover:bg-emerald-600 rounded-xl font-bold transition-all flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[16px]">check</span> Aprobar
+                    </button>
+                </div>
             </div>
 
             <!-- Tarjetas -->
-            <div id="contenedor" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                <!-- Inyectado por JS -->
-            </div>
+            <div id="contenedor" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"></div>
         </div>
     </div>
 
-    <!-- ============================================== -->
-    <!-- JAVASCRIPT -->
-    <!-- ============================================== -->
     <script>
         const APPS_URL = 'https://script.google.com/macros/s/AKfycbxv4o9FsMHQMh23PpAVOGTD2jaCVgfLIpEB-MBwZLRZsGKsCsXxscJfwfI90sYtOrk97w/exec';
 
-        auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+        // ── Estado global ──
+        let selectedIds     = new Set();
+        let solicitudesData = {};
+        let solicitudesListener = null;
+        let isProcessing    = false;
+        let pendingRejectIds = [];
+
+        // ── Auth ──
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
         auth.onAuthStateChanged(user => {
             if (user) {
@@ -232,14 +274,10 @@
         function login() {
             const user = document.getElementById('username').value;
             const pass = document.getElementById('password').value;
-            const err = document.getElementById('error');
+            const err  = document.getElementById('error');
             err.classList.add('hidden');
-
             auth.signInWithEmailAndPassword(user, pass)
-                .catch(e => {
-                    console.error('Auth error:', e.code);
-                    err.classList.remove('hidden');
-                });
+                .catch(e => { console.error('Auth error:', e.code); err.classList.remove('hidden'); });
         }
 
         function verificarPrimerIngreso(user) {
@@ -291,8 +329,8 @@
         }
 
         function actualizarFortaleza() {
-            const val = document.getElementById('newPassword').value;
-            const bar = document.getElementById('strengthBar');
+            const val  = document.getElementById('newPassword').value;
+            const bar  = document.getElementById('strengthBar');
             const fill = document.getElementById('strengthFill');
             const label = document.getElementById('strengthLabel');
             if (!val) { bar.classList.add('hidden'); return; }
@@ -303,10 +341,10 @@
             if (/[0-9]/.test(val)) score++;
             if (/[^A-Za-z0-9]/.test(val)) score++;
             const niveles = [
-                { w: 'w-1/4', color: 'bg-error',   text: 'Muy débil' },
-                { w: 'w-2/4', color: 'bg-amber-400', text: 'Débil' },
-                { w: 'w-3/4', color: 'bg-yellow-400', text: 'Aceptable' },
-                { w: 'w-full', color: 'bg-success',  text: 'Fuerte' },
+                { w: 'w-1/4', color: 'bg-error',        text: 'Muy débil' },
+                { w: 'w-2/4', color: 'bg-amber-400',    text: 'Débil' },
+                { w: 'w-3/4', color: 'bg-yellow-400',   text: 'Aceptable' },
+                { w: 'w-full', color: 'bg-success',     text: 'Fuerte' },
             ];
             const n = niveles[score - 1] || niveles[0];
             fill.className = `h-full rounded-full transition-all duration-300 ${n.w} ${n.color}`;
@@ -314,25 +352,20 @@
         }
 
         function cambiarContrasena() {
-            const newPass = document.getElementById('newPassword').value;
+            const newPass     = document.getElementById('newPassword').value;
             const confirmPass = document.getElementById('confirmPassword').value;
-            const errEl = document.getElementById('changePasswordError');
+            const errEl       = document.getElementById('changePasswordError');
             errEl.classList.add('hidden');
-
             if (newPass.length < 8) {
                 errEl.textContent = 'La contraseña debe tener al menos 8 caracteres.';
-                errEl.classList.remove('hidden');
-                return;
+                errEl.classList.remove('hidden'); return;
             }
             if (newPass !== confirmPass) {
                 errEl.textContent = 'Las contraseñas no coinciden.';
-                errEl.classList.remove('hidden');
-                return;
+                errEl.classList.remove('hidden'); return;
             }
-
             const user = auth.currentUser;
             document.getElementById('loading').classList.add('active');
-
             user.updatePassword(newPass)
                 .then(() => db.ref('admins/' + user.uid + '/passwordChanged').set(true))
                 .then(() => {
@@ -351,10 +384,324 @@
 
         function mostrarDashboard() {
             document.getElementById('dashboard').classList.remove('hidden');
+            document.getElementById('loading').classList.add('active');
             registrarTokenAdmin();
-            cargarSolicitudes();
+            iniciarListener();
         }
 
+        // ── Listener tiempo real ──
+        function iniciarListener() {
+            if (solicitudesListener) {
+                db.ref('solicitudes').off('value', solicitudesListener);
+            }
+            solicitudesListener = db.ref('solicitudes').on('value', snapshot => {
+                if (isProcessing) return;
+                solicitudesData = snapshot.val() || {};
+                document.getElementById('loading').classList.remove('active');
+                renderizarSolicitudes();
+                actualizarContadores();
+            }, () => {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('contenedor').innerHTML = `
+                    <div class="col-span-full text-center py-12 text-error flex flex-col items-center gap-2">
+                        <span class="material-symbols-outlined text-4xl">error</span>
+                        <p>Error al cargar solicitudes. Intenta recargar.</p>
+                    </div>`;
+            });
+        }
+
+        function detenerListener() {
+            if (solicitudesListener) {
+                db.ref('solicitudes').off('value', solicitudesListener);
+                solicitudesListener = null;
+            }
+        }
+
+        // ── Render ──
+        function renderizarSolicitudes() {
+            const contenedor  = document.getElementById('contenedor');
+            const estadoActivo = document.querySelector('.tab-btn.active')?.dataset.tab || 'pendiente';
+            contenedor.innerHTML = '';
+
+            if (estadoActivo !== 'pendiente') {
+                selectedIds.clear();
+                document.getElementById('bulkBar').classList.add('hidden');
+            }
+
+            const filtradas = Object.entries(solicitudesData)
+                .filter(([, s]) => s.estado === estadoActivo)
+                .map(([id, s]) => ({ id, ...s }))
+                .sort((a, b) => new Date(`${a.fecha} ${a.hora}`) - new Date(`${b.fecha} ${b.hora}`));
+
+            if (filtradas.length === 0) {
+                const textos = { pendiente: 'pendientes', aprobado: 'aprobadas', rechazado: 'rechazadas' };
+                contenedor.innerHTML = `
+                    <div class="col-span-full text-center py-12 text-on-surface-variant flex flex-col items-center gap-2">
+                        <span class="material-symbols-outlined text-4xl opacity-40">inbox</span>
+                        <p>No hay solicitudes ${textos[estadoActivo]}.</p>
+                    </div>`;
+                return;
+            }
+
+            filtradas.forEach(s => contenedor.appendChild(crearTarjetaSolicitud(s.id, s, estadoActivo)));
+
+            if (estadoActivo === 'pendiente') actualizarBulkBar();
+        }
+
+        function actualizarContadores() {
+            const counts = { pendiente: 0, aprobado: 0, rechazado: 0 };
+            Object.values(solicitudesData).forEach(s => {
+                if (s.estado in counts) counts[s.estado]++;
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                const tab  = btn.dataset.tab;
+                const span = btn.querySelector('.tab-count');
+                if (!span) return;
+                const n = counts[tab] || 0;
+                span.textContent = n;
+                span.classList.toggle('hidden', n === 0);
+            });
+        }
+
+        // ── Tarjeta ──
+        function crearTarjetaSolicitud(id, s, estado) {
+            const div = document.createElement('div');
+            div.className = 'bg-white p-5 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-3 hover:shadow-md transition-all relative';
+            if (selectedIds.has(id)) div.classList.add('card-selected');
+
+            const badgeClass = estado === 'pendiente' ? 'bg-primary-fixed text-primary'
+                             : estado === 'aprobado'  ? 'bg-success/20 text-success'
+                             : 'bg-error/20 text-error';
+
+            const checkboxHTML = estado === 'pendiente' ? `
+                <input type="checkbox" data-id="${id}"
+                    class="card-checkbox absolute top-4 right-4 w-4 h-4 accent-primary cursor-pointer"
+                    ${selectedIds.has(id) ? 'checked' : ''}
+                    onchange="toggleSelection('${id}', this.checked)">
+            ` : '';
+
+            div.innerHTML = `
+                ${checkboxHTML}
+                <div class="flex justify-between items-start gap-2 ${estado === 'pendiente' ? 'pr-7' : ''}">
+                    <h3 class="font-bold text-on-surface text-base leading-tight">${s.evento}</h3>
+                    <span class="shrink-0 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${badgeClass}">${estado}</span>
+                </div>
+                <div class="space-y-1.5 text-body-sm text-on-surface-variant">
+                    <p class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] shrink-0">calendar_today</span> <strong>${s.fecha}</strong> a las <strong>${s.hora}</strong></p>
+                    <p class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] shrink-0">person</span> <span class="truncate">${s.nombre}</span></p>
+                    <p class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] shrink-0">work</span> <span class="truncate">${s.area || 'N/A'}</span></p>
+                    <p class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] shrink-0">mail</span> <span class="truncate text-xs">${s.correo}</span></p>
+                </div>
+                ${s.comentarios ? `<div class="p-3 bg-surface-container-low rounded-lg text-[13px] text-on-surface-variant italic">"${s.comentarios}"</div>` : ''}
+                ${estado === 'rechazado' && s.motivoRechazo ? `<div class="p-3 bg-error/10 rounded-lg text-[13px] text-error font-medium flex items-start gap-2"><span class="material-symbols-outlined text-[16px] shrink-0 mt-0.5">info</span><span>Motivo: ${s.motivoRechazo}</span></div>` : ''}
+            `;
+
+            if (estado === 'pendiente') {
+                const acciones = document.createElement('div');
+                acciones.className = 'mt-auto pt-4 border-t border-outline-variant flex gap-3';
+                acciones.innerHTML = `
+                    <button class="btn-aprobar flex-1 py-2.5 bg-success text-white rounded-xl font-bold hover:bg-emerald-600 active:scale-95 transition-all flex items-center justify-center gap-1.5 text-sm">
+                        <span class="material-symbols-outlined text-[18px]">check</span> Aprobar
+                    </button>
+                    <button class="btn-rechazar flex-1 py-2.5 bg-error/10 text-error rounded-xl font-bold hover:bg-error hover:text-white active:scale-95 transition-all flex items-center justify-center gap-1.5 text-sm">
+                        <span class="material-symbols-outlined text-[18px]">close</span> Rechazar
+                    </button>
+                `;
+                acciones.querySelector('.btn-aprobar').onclick = () => aprobarSolicitud(id, s);
+                acciones.querySelector('.btn-rechazar').onclick = () => mostrarModalRechazo([id]);
+                div.appendChild(acciones);
+            }
+            return div;
+        }
+
+        // ── Selección ──
+        function toggleSelection(id, checked) {
+            if (checked) selectedIds.add(id);
+            else selectedIds.delete(id);
+            const card = document.querySelector(`[data-id="${id}"]`)?.closest('.bg-white');
+            if (card) card.classList.toggle('card-selected', checked);
+            actualizarBulkBar();
+        }
+
+        function toggleSelectAll(checked) {
+            document.querySelectorAll('.card-checkbox').forEach(cb => {
+                const id = cb.dataset.id;
+                cb.checked = checked;
+                const card = cb.closest('.bg-white');
+                if (card) card.classList.toggle('card-selected', checked);
+                if (checked) selectedIds.add(id);
+                else selectedIds.delete(id);
+            });
+            actualizarBulkBar();
+        }
+
+        function deseleccionarTodo() {
+            selectedIds.clear();
+            document.querySelectorAll('.card-checkbox').forEach(cb => {
+                cb.checked = false;
+                const card = cb.closest('.bg-white');
+                if (card) card.classList.remove('card-selected');
+            });
+            document.getElementById('selectAllCheck').checked = false;
+            actualizarBulkBar();
+        }
+
+        function actualizarBulkBar() {
+            const bulkBar = document.getElementById('bulkBar');
+            const n = selectedIds.size;
+            if (n === 0) {
+                bulkBar.classList.add('hidden');
+                return;
+            }
+            bulkBar.classList.remove('hidden');
+            document.getElementById('bulkCount').textContent =
+                `${n} reserva${n !== 1 ? 's' : ''} seleccionada${n !== 1 ? 's' : ''}`;
+
+            const totalPendiente = Object.values(solicitudesData).filter(s => s.estado === 'pendiente').length;
+            document.getElementById('selectAllCheck').checked = n === totalPendiente;
+        }
+
+        // ── Aprobar individual ──
+        function aprobarSolicitud(id, s) {
+            if (!confirm(`¿Aprobar reserva de ${s.nombre}?\n\n"${s.evento}" — ${s.fecha} a las ${s.hora}`)) return;
+            document.getElementById('loading').classList.add('active');
+            const url = `${APPS_URL}?modo=crear&fecha=${s.fecha}&hora=${s.hora}&duracion=${s.duracion}` +
+                `&evento=${encodeURIComponent(s.evento)}&nombre=${encodeURIComponent(s.nombre)}` +
+                `&correo=${s.correo}&comentarios=${encodeURIComponent(s.comentarios || '')}` +
+                `&area=${encodeURIComponent(s.area)}`;
+            fetch(url).then(r => r.json())
+                .then(() => db.ref(`solicitudes/${id}/estado`).set('aprobado'))
+                .then(() => { alert('✅ Reserva aprobada y evento creado en Google Calendar'); })
+                .catch(() => { alert('Error al crear el evento en Calendar. La reserva no fue aprobada.'); })
+                .finally(() => document.getElementById('loading').classList.remove('active'));
+        }
+
+        // ── Aprobar masivo ──
+        async function aprobarSeleccionadas() {
+            const ids = [...selectedIds];
+            if (ids.length === 0) return;
+
+            const lista = ids.map(id => {
+                const s = solicitudesData[id];
+                return s ? `• "${s.evento}" — ${s.fecha} ${s.hora}` : '';
+            }).filter(Boolean).join('\n');
+
+            if (!confirm(`¿Aprobar ${ids.length} reserva(s)?\n\n${lista}`)) return;
+
+            isProcessing = true;
+            document.getElementById('loadingText').textContent = 'Aprobando reservas...';
+            document.getElementById('loading').classList.add('active');
+
+            let errores = 0;
+            for (const id of ids) {
+                const s = solicitudesData[id];
+                if (!s) continue;
+                try {
+                    const url = `${APPS_URL}?modo=crear&fecha=${s.fecha}&hora=${s.hora}&duracion=${s.duracion}` +
+                        `&evento=${encodeURIComponent(s.evento)}&nombre=${encodeURIComponent(s.nombre)}` +
+                        `&correo=${s.correo}&comentarios=${encodeURIComponent(s.comentarios || '')}` +
+                        `&area=${encodeURIComponent(s.area)}`;
+                    await fetch(url).then(r => r.json());
+                    await db.ref(`solicitudes/${id}/estado`).set('aprobado');
+                } catch (e) { errores++; }
+            }
+
+            selectedIds.clear();
+            isProcessing = false;
+            document.getElementById('loadingText').textContent = 'Cargando datos...';
+            document.getElementById('loading').classList.remove('active');
+
+            const exitosas = ids.length - errores;
+            alert(errores > 0
+                ? `✅ ${exitosas} aprobada(s). ⚠️ ${errores} con error (conflicto de horario).`
+                : `✅ ${exitosas} reserva(s) aprobada(s) correctamente.`);
+
+            const snap = await db.ref('solicitudes').once('value');
+            solicitudesData = snap.val() || {};
+            renderizarSolicitudes();
+            actualizarContadores();
+        }
+
+        // ── Modal rechazo ──
+        function mostrarModalRechazo(ids) {
+            pendingRejectIds = ids;
+            document.getElementById('rechazarLista').innerHTML = ids.map(id => {
+                const s = solicitudesData[id];
+                return s ? `
+                    <div class="bg-surface-container-low border border-outline-variant rounded-xl p-3 space-y-2">
+                        <div class="flex items-start gap-2 text-sm text-on-surface">
+                            <span class="material-symbols-outlined text-[16px] text-error shrink-0 mt-0.5">event_busy</span>
+                            <div><strong>${s.evento}</strong><span class="text-on-surface-variant ml-1">— ${s.fecha} a las ${s.hora}</span></div>
+                        </div>
+                        <textarea id="motivo-${id}" rows="2" placeholder="Motivo del rechazo para esta reserva..."
+                            class="w-full bg-white border border-outline-variant focus:ring-2 focus:ring-error/30 focus:border-error rounded-lg p-2 text-sm resize-none transition-all outline-none"></textarea>
+                    </div>` : '';
+            }).join('');
+            document.getElementById('rechazarMotivoError').classList.add('hidden');
+            document.getElementById('rechazarModal').classList.remove('hidden');
+        }
+
+        function cerrarModalRechazo() {
+            document.getElementById('rechazarModal').classList.add('hidden');
+            pendingRejectIds = [];
+        }
+
+        async function confirmarRechazo() {
+            const errorEl = document.getElementById('rechazarMotivoError');
+
+            // Recolectar motivos individuales y validar que ninguno esté vacío
+            const motivos = {};
+            let todoValido = true;
+            for (const id of pendingRejectIds) {
+                const val = (document.getElementById(`motivo-${id}`)?.value || '').trim();
+                if (!val) { todoValido = false; break; }
+                motivos[id] = val;
+            }
+            if (!todoValido) { errorEl.classList.remove('hidden'); return; }
+            errorEl.classList.add('hidden');
+
+            const idsARechazar = [...pendingRejectIds];
+            cerrarModalRechazo();
+
+            isProcessing = true;
+            document.getElementById('loadingText').textContent = 'Rechazando reservas...';
+            document.getElementById('loading').classList.add('active');
+
+            let errores = 0;
+            for (const id of idsARechazar) {
+                const s = solicitudesData[id];
+                if (!s) continue;
+                const motivo = motivos[id];
+                try {
+                    await db.ref(`solicitudes/${id}`).update({ estado: 'rechazado', motivoRechazo: motivo });
+                    fetch(`${APPS_URL}?modo=rechazar&id=${id}&motivo=${encodeURIComponent(motivo)}`).catch(console.error);
+                } catch (e) { errores++; }
+            }
+
+            const n = idsARechazar.length;
+            selectedIds.clear();
+            pendingRejectIds = [];
+            isProcessing = false;
+            document.getElementById('loadingText').textContent = 'Cargando datos...';
+            document.getElementById('loading').classList.remove('active');
+
+            alert(errores > 0
+                ? `❌ ${n - errores} rechazada(s). ⚠️ ${errores} con error.`
+                : `❌ ${n} reserva(s) rechazada(s).`);
+
+            const snap = await db.ref('solicitudes').once('value');
+            solicitudesData = snap.val() || {};
+            renderizarSolicitudes();
+            actualizarContadores();
+        }
+
+        function rechazarSeleccionadas() {
+            const ids = [...selectedIds];
+            if (ids.length === 0) return;
+            mostrarModalRechazo(ids);
+        }
+
+        // ── FCM ──
         async function registrarTokenAdmin() {
             if (!messaging) return;
             try {
@@ -372,124 +719,12 @@
             } catch (e) { console.error('FCM:', e); }
         }
 
-        function crearTarjetaSolicitud(id, s, estado) {
-            const div = document.createElement('div');
-            div.className = 'bg-white p-5 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-3 hover:shadow-md transition-shadow';
-
-            const badgeClass = estado === 'pendiente' ? 'bg-primary-fixed text-primary'
-                             : estado === 'aprobado'  ? 'bg-success/20 text-success'
-                             : 'bg-error/20 text-error';
-
-            div.innerHTML = `
-                <div class="flex justify-between items-start gap-2">
-                    <h3 class="font-bold text-on-surface text-lg leading-tight">${s.evento}</h3>
-                    <span class="shrink-0 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${badgeClass}">${estado}</span>
-                </div>
-                <div class="space-y-1.5 text-body-sm text-on-surface-variant">
-                    <p class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] shrink-0">calendar_today</span> <strong>${s.fecha}</strong> a las <strong>${s.hora}</strong></p>
-                    <p class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] shrink-0">person</span> <span class="truncate">${s.nombre}</span></p>
-                    <p class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] shrink-0">work</span> <span class="truncate">${s.area || 'N/A'}</span></p>
-                    <p class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] shrink-0">mail</span> <span class="truncate text-xs">${s.correo}</span></p>
-                </div>
-                ${s.comentarios ? `<div class="p-3 bg-surface-container-low rounded-lg text-[13px] text-on-surface-variant italic">"${s.comentarios}"</div>` : ''}
-                ${estado === 'rechazado' && s.motivoRechazo ? `<div class="p-3 bg-error/10 rounded-lg text-[13px] text-error font-medium">Motivo: ${s.motivoRechazo}</div>` : ''}
-            `;
-
-            if (estado === 'pendiente') {
-                const acciones = document.createElement('div');
-                acciones.className = 'mt-auto pt-4 border-t border-outline-variant flex gap-3';
-                acciones.innerHTML = `
-                    <button class="btn-aprobar flex-1 py-3 bg-success text-white rounded-xl font-bold hover:bg-emerald-600 active:scale-95 transition-all flex items-center justify-center gap-2 text-sm">
-                        <span class="material-symbols-outlined text-[18px]">check</span> Aprobar
-                    </button>
-                    <button class="btn-rechazar flex-1 py-3 bg-error/10 text-error rounded-xl font-bold hover:bg-error hover:text-white active:scale-95 transition-all flex items-center justify-center gap-2 text-sm">
-                        <span class="material-symbols-outlined text-[18px]">close</span> Rechazar
-                    </button>
-                `;
-                acciones.querySelector('.btn-aprobar').onclick = () => aprobarSolicitud(id, s);
-                acciones.querySelector('.btn-rechazar').onclick = () => rechazarSolicitud(id);
-                div.appendChild(acciones);
-            }
-            return div;
-        }
-
-        function cargarSolicitudes() {
-            const contenedor = document.getElementById('contenedor');
-            const loading = document.getElementById('loading');
-            contenedor.innerHTML = '';
-            loading.classList.add('active');
-
-            db.ref('solicitudes').once('value', snapshot => {
-                loading.classList.remove('active');
-                const datos = snapshot.val() || {};
-                const estadoActivo = document.querySelector('.tab-btn.active').dataset.tab;
-
-                const filtradas = Object.entries(datos)
-                    .filter(([, s]) => s.estado === estadoActivo)
-                    .map(([id, s]) => ({ id, ...s }))
-                    .sort((a, b) => new Date(`${a.fecha} ${a.hora}`) - new Date(`${b.fecha} ${b.hora}`));
-
-                if (filtradas.length === 0) {
-                    contenedor.innerHTML = `
-                        <div class="col-span-full text-center py-12 text-on-surface-variant flex flex-col items-center gap-2">
-                            <span class="material-symbols-outlined text-4xl opacity-40">inbox</span>
-                            <p>No hay solicitudes ${estadoActivo}s.</p>
-                        </div>`;
-                } else {
-                    filtradas.forEach(s => contenedor.appendChild(crearTarjetaSolicitud(s.id, s, estadoActivo)));
-                }
-            }, err => {
-                loading.classList.remove('active');
-                contenedor.innerHTML = `
-                    <div class="col-span-full text-center py-12 text-error flex flex-col items-center gap-2">
-                        <span class="material-symbols-outlined text-4xl">error</span>
-                        <p>Error al cargar solicitudes. Intenta recargar la página.</p>
-                    </div>`;
-            });
-        }
-
-        function aprobarSolicitud(id, s) {
-            if (!confirm(`¿Aprobar reserva de ${s.nombre} para el ${s.fecha}?`)) return;
-            document.getElementById('loading').classList.add('active');
-
-            const url = `${APPS_URL}?modo=crear&fecha=${s.fecha}&hora=${s.hora}&duracion=${s.duracion}` +
-                `&evento=${encodeURIComponent(s.evento)}&nombre=${encodeURIComponent(s.nombre)}` +
-                `&correo=${s.correo}&comentarios=${encodeURIComponent(s.comentarios || '')}` +
-                `&area=${encodeURIComponent(s.area)}`;
-
-            fetch(url).then(r => r.json())
-                .then(() => db.ref(`solicitudes/${id}/estado`).set('aprobado'))
-                .then(() => {
-                    alert('✅ Reserva aprobada y evento creado en Google Calendar');
-                    cargarSolicitudes();
-                })
-                .catch(e => {
-                    console.error('❌ Error al aprobar:', e);
-                    alert('Error al crear el evento en Calendar. La reserva no fue aprobada.');
-                    document.getElementById('loading').classList.remove('active');
-                });
-        }
-
-        function rechazarSolicitud(id) {
-            const motivo = prompt('Ingrese el motivo del rechazo:');
-            if (motivo === null) return;
-            if (!motivo.trim()) { alert('Debe ingresar un motivo para rechazar la solicitud.'); return; }
-            document.getElementById('loading').classList.add('active');
-
-            db.ref(`solicitudes/${id}`).update({ estado: 'rechazado', motivoRechazo: motivo })
-                .then(() => {
-                    alert('❌ Reserva rechazada');
-                    fetch(`${APPS_URL}?modo=rechazar&id=${id}&motivo=${encodeURIComponent(motivo)}`).catch(console.error);
-                    cargarSolicitudes();
-                })
-                .catch(err => {
-                    alert('Error al rechazar: ' + err.message);
-                    document.getElementById('loading').classList.remove('active');
-                });
-        }
-
+        // ── DOMContentLoaded ──
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('btnLogout').addEventListener('click', () => {
+                detenerListener();
+                selectedIds.clear();
+                solicitudesData = {};
                 auth.signOut().then(() => {
                     document.getElementById('loginContainer').classList.remove('hidden');
                     document.getElementById('dashboard').classList.add('hidden');
@@ -511,7 +746,8 @@
                     });
                     btn.classList.remove('bg-surface-container', 'text-on-surface-variant');
                     btn.classList.add('active', 'bg-primary', 'text-on-primary', 'shadow-md');
-                    cargarSolicitudes();
+                    selectedIds.clear();
+                    renderizarSolicitudes();
                 });
             });
         });
