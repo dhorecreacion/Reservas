@@ -164,13 +164,30 @@
     .badge-aprobado { background: #d1fae5; color: #065f46; }
     .badge-pendiente { background: #dbeafe; color: #1e40af; }
 
-    .toast {
-      position: fixed; top: 20px; right: 20px; background-color: #ecfdf5; color: #047857;
-      padding: 1rem 1.5rem; font-size: 0.85rem; border-radius: 12px; font-weight: 600;
-      box-shadow: 0 6px 12px rgba(0,0,0,0.1); border: 1px solid #d1fae5;
-      opacity: 0; transition: opacity 0.3s ease; z-index: 9999;
+    .pending-overlay {
+      position: fixed; inset: 0; background: rgba(15,23,42,0.55);
+      display: none; align-items: center; justify-content: center;
+      z-index: 10000; padding: 1rem;
     }
-    .toast.show { opacity: 1; }
+    .pending-overlay.show { display: flex; }
+    .pending-modal {
+      background: white; border-radius: 16px; max-width: 420px; width: 100%;
+      padding: 1.75rem; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+    }
+    .pending-modal .icon {
+      width: 56px; height: 56px; border-radius: 50%; background: #fef3c7; color: #b45309;
+      display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;
+      font-size: 1.5rem;
+    }
+    .pending-modal h3 { font-size: 1.05rem; color: #1e293b; margin-bottom: 0.6rem; }
+    .pending-modal p { font-size: 0.85rem; color: #475569; line-height: 1.5; margin-bottom: 0.5rem; }
+    .pending-modal strong { color: #b45309; }
+    .pending-modal button {
+      margin-top: 1rem; background: #1e40af; color: white; border: none;
+      padding: 0.65rem 1.5rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .pending-modal button:hover { background: #1e3a8a; }
 
     @media (max-width: 900px) {
       .right-panel { flex-direction: column; }
@@ -271,7 +288,15 @@
     <i class="fa-solid fa-shield-halved"></i> Aprobaciones
   </a>
 
-  <div class="toast" id="toast">✅ Solicitud enviada correctamente</div>
+  <div class="pending-overlay" id="pending-overlay">
+    <div class="pending-modal">
+      <div class="icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <h3>Solicitud enviada</h3>
+      <p>Tu solicitud está <strong>pendiente de aprobación</strong>. No puedes hacer uso de la Sala SUM hasta recibir la confirmación de aprobación por parte de <strong>DHO</strong>.</p>
+      <p>Si tienes dudas o es urgente, apersónate con <strong>Calidad de Vida</strong>.</p>
+      <button id="pending-ok-btn">Entendido</button>
+    </div>
+  </div>
 
   <script>
     const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxv4o9FsMHQMh23PpAVOGTD2jaCVgfLIpEB-MBwZLRZsGKsCsXxscJfwfI90sYtOrk97w/exec';
@@ -511,12 +536,12 @@
         .then(() => {
           const params = new URLSearchParams({ modo: 'notificar', evento, nombre, correo, area, fecha, hora, duracion });
           fetch(`${WEBAPP_URL}?${params}`).catch(() => {});
-          const toast = document.getElementById('toast');
-          toast.classList.add('show');
-          setTimeout(() => { toast.classList.remove('show'); location.reload(); }, 3200);
+          document.getElementById('pending-overlay').classList.add('show');
         })
         .catch(err => { console.error('❌', err); alert('Error al procesar la solicitud. Intenta nuevamente.'); });
     });
+
+    document.getElementById('pending-ok-btn').addEventListener('click', () => location.reload());
 
     renderCalendar(currentYear, currentMonth);
   </script>
