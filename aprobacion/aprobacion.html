@@ -109,6 +109,49 @@
         </div>
     </div>
 
+    <!-- Modal Aviso de inactividad -->
+    <div id="inactividadModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[300] p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center space-y-4">
+            <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+                <span class="material-symbols-outlined text-2xl">hourglass_top</span>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-on-surface">¿Sigues ahí?</h3>
+                <p class="text-body-sm text-on-surface-variant mt-1">
+                    Por seguridad, tu sesión se cerrará por inactividad en
+                    <span id="inactividadSegundos" class="font-bold text-on-surface">60</span> segundos.
+                </p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="cerrarSesion(false)"
+                    class="flex-1 py-2.5 rounded-xl font-medium text-on-surface-variant hover:bg-surface-container transition-all text-sm">
+                    Cerrar sesión
+                </button>
+                <button onclick="continuarSesion()"
+                    class="flex-1 py-2.5 bg-primary text-on-primary rounded-xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all text-sm">
+                    Seguir conectado
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Sesión expirada -->
+    <div id="sesionExpiradaModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[300] p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center space-y-4">
+            <div class="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
+                <span class="material-symbols-outlined text-2xl">lock_clock</span>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-on-surface">Sesión cerrada</h3>
+                <p class="text-body-sm text-on-surface-variant mt-1">Tu sesión se cerró automáticamente por inactividad. Vuelve a iniciar sesión para continuar.</p>
+            </div>
+            <button onclick="document.getElementById('sesionExpiradaModal').classList.add('hidden')"
+                class="w-full py-2.5 bg-primary text-on-primary rounded-xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all text-sm">
+                Entendido
+            </button>
+        </div>
+    </div>
+
     <!-- LOGIN -->
     <div id="loginContainer" class="flex flex-col items-center justify-center min-h-screen px-4">
         <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl w-full max-w-md border border-outline-variant space-y-6">
@@ -218,6 +261,30 @@
                 </button>
             </div>
 
+            <!-- Filtros -->
+            <div class="bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-outline-variant flex flex-wrap items-end gap-3">
+                <div class="flex-1 min-w-[140px]">
+                    <label class="block text-[11px] font-semibold text-on-surface-variant mb-1">Área</label>
+                    <select id="filtroArea" class="w-full bg-slate-50 border border-outline-variant rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none">
+                        <option value="">Todas las áreas</option>
+                    </select>
+                </div>
+                <div class="flex-1 min-w-[160px]">
+                    <label class="block text-[11px] font-semibold text-on-surface-variant mb-1">Correo</label>
+                    <input type="text" id="filtroCorreo" placeholder="Buscar correo..."
+                        class="w-full bg-slate-50 border border-outline-variant rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none" />
+                </div>
+                <div class="flex-1 min-w-[140px]">
+                    <label class="block text-[11px] font-semibold text-on-surface-variant mb-1">Fecha</label>
+                    <input type="date" id="filtroFecha"
+                        class="w-full bg-slate-50 border border-outline-variant rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none" />
+                </div>
+                <button id="btnLimpiarFiltros"
+                    class="px-3 py-2 text-xs sm:text-sm text-on-surface-variant hover:bg-surface-container rounded-lg font-medium transition-all flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[16px]">filter_alt_off</span> Limpiar
+                </button>
+            </div>
+
             <!-- Barra de selección masiva -->
             <div id="bulkBar" class="hidden sticky top-4 z-40 bg-white border border-primary/30 rounded-2xl shadow-lg p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
@@ -262,6 +329,91 @@
         let solicitudesListener = null;
         let isProcessing    = false;
         let pendingRejectIds = [];
+        let filtros = { area: '', correo: '', fecha: '' };
+
+        // ── Cierre de sesión por inactividad ──
+        const INACTIVIDAD_AVISO_MS  = 19 * 60 * 1000; // aviso a los 19 min
+        const INACTIVIDAD_CUENTA_S  = 60;              // 60s de cuenta regresiva tras el aviso
+        const EVENTOS_ACTIVIDAD = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+        let avisoTimer = null;
+        let cuentaRegresivaInterval = null;
+
+        function resetInactividadTimer() {
+            clearTimeout(avisoTimer);
+            avisoTimer = setTimeout(mostrarAvisoInactividad, INACTIVIDAD_AVISO_MS);
+        }
+
+        function iniciarControlInactividad() {
+            EVENTOS_ACTIVIDAD.forEach(evt => document.addEventListener(evt, resetInactividadTimer));
+            resetInactividadTimer();
+        }
+
+        function detenerControlInactividad() {
+            clearTimeout(avisoTimer);
+            clearInterval(cuentaRegresivaInterval);
+            EVENTOS_ACTIVIDAD.forEach(evt => document.removeEventListener(evt, resetInactividadTimer));
+            document.getElementById('inactividadModal').classList.add('hidden');
+        }
+
+        function mostrarAvisoInactividad() {
+            EVENTOS_ACTIVIDAD.forEach(evt => document.removeEventListener(evt, resetInactividadTimer));
+            let segundosRestantes = INACTIVIDAD_CUENTA_S;
+            document.getElementById('inactividadSegundos').textContent = segundosRestantes;
+            document.getElementById('inactividadModal').classList.remove('hidden');
+            cuentaRegresivaInterval = setInterval(() => {
+                segundosRestantes--;
+                document.getElementById('inactividadSegundos').textContent = segundosRestantes;
+                if (segundosRestantes <= 0) {
+                    clearInterval(cuentaRegresivaInterval);
+                    cerrarSesion(true);
+                }
+            }, 1000);
+        }
+
+        function continuarSesion() {
+            clearInterval(cuentaRegresivaInterval);
+            document.getElementById('inactividadModal').classList.add('hidden');
+            EVENTOS_ACTIVIDAD.forEach(evt => document.addEventListener(evt, resetInactividadTimer));
+            resetInactividadTimer();
+        }
+
+        function cerrarSesion(porInactividad) {
+            detenerControlInactividad();
+            detenerListener();
+            selectedIds.clear();
+            solicitudesData = {};
+            auth.signOut().then(() => {
+                document.getElementById('loginContainer').classList.remove('hidden');
+                document.getElementById('dashboard').classList.add('hidden');
+                document.getElementById('changePasswordContainer').classList.add('hidden');
+                document.getElementById('contenedor').innerHTML = '';
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
+                document.getElementById('newPassword').value = '';
+                document.getElementById('confirmPassword').value = '';
+                document.getElementById('strengthBar').classList.add('hidden');
+                if (porInactividad) document.getElementById('sesionExpiradaModal').classList.remove('hidden');
+            }).catch(err => alert('Error al cerrar sesión: ' + err.message));
+        }
+
+        document.getElementById('filtroArea').addEventListener('change', e => { filtros.area = e.target.value; renderizarSolicitudes(); });
+        document.getElementById('filtroCorreo').addEventListener('input', e => { filtros.correo = e.target.value.trim(); renderizarSolicitudes(); });
+        document.getElementById('filtroFecha').addEventListener('change', e => { filtros.fecha = e.target.value; renderizarSolicitudes(); });
+        document.getElementById('btnLimpiarFiltros').addEventListener('click', () => {
+            filtros = { area: '', correo: '', fecha: '' };
+            document.getElementById('filtroArea').value = '';
+            document.getElementById('filtroCorreo').value = '';
+            document.getElementById('filtroFecha').value = '';
+            renderizarSolicitudes();
+        });
+
+        function actualizarFiltroArea() {
+            const select = document.getElementById('filtroArea');
+            const actual = select.value;
+            const areas = [...new Set(Object.values(solicitudesData).map(s => s.area).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+            select.innerHTML = '<option value="">Todas las áreas</option>' + areas.map(a => `<option value="${a}">${a}</option>`).join('');
+            if (areas.includes(actual)) select.value = actual;
+        }
 
         // ── Auth ──
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
@@ -393,6 +545,7 @@
             document.getElementById('loading').classList.add('active');
             registrarTokenAdmin();
             iniciarListener();
+            iniciarControlInactividad();
         }
 
         // ── Listener tiempo real ──
@@ -404,6 +557,7 @@
                 if (isProcessing) return;
                 solicitudesData = snapshot.val() || {};
                 document.getElementById('loading').classList.remove('active');
+                actualizarFiltroArea();
                 renderizarSolicitudes();
                 actualizarContadores();
             }, () => {
@@ -434,17 +588,31 @@
                 document.getElementById('bulkBar').classList.add('hidden');
             }
 
-            const filtradas = Object.entries(solicitudesData)
+            let filtradas = Object.entries(solicitudesData)
                 .filter(([, s]) => s.estado === estadoActivo)
-                .map(([id, s]) => ({ id, ...s }))
-                .sort((a, b) => new Date(`${a.fecha} ${a.hora}`) - new Date(`${b.fecha} ${b.hora}`));
+                .map(([id, s]) => ({ id, ...s }));
+
+            if (filtros.area)   filtradas = filtradas.filter(s => s.area === filtros.area);
+            if (filtros.correo) filtradas = filtradas.filter(s => (s.correo || '').toLowerCase().includes(filtros.correo.toLowerCase()));
+            if (filtros.fecha)  filtradas = filtradas.filter(s => s.fecha === filtros.fecha);
+
+            if (estadoActivo === 'pendiente') {
+                filtradas.sort((a, b) => new Date(`${a.fecha} ${a.hora}`) - new Date(`${b.fecha} ${b.hora}`));
+            } else {
+                filtradas.sort((a, b) => {
+                    const ta = a.resueltoEn || new Date(`${a.fecha} ${a.hora}`).getTime();
+                    const tb = b.resueltoEn || new Date(`${b.fecha} ${b.hora}`).getTime();
+                    return tb - ta;
+                });
+            }
 
             if (filtradas.length === 0) {
                 const textos = { pendiente: 'pendientes', aprobado: 'aprobadas', rechazado: 'rechazadas' };
+                const conFiltros = filtros.area || filtros.correo || filtros.fecha;
                 contenedor.innerHTML = `
                     <div class="col-span-full text-center py-12 text-on-surface-variant flex flex-col items-center gap-2">
                         <span class="material-symbols-outlined text-4xl opacity-40">inbox</span>
-                        <p>No hay solicitudes ${textos[estadoActivo]}.</p>
+                        <p>No hay solicitudes ${textos[estadoActivo]}${conFiltros ? ' con esos filtros' : ''}.</p>
                     </div>`;
                 return;
             }
@@ -577,9 +745,12 @@
                 `&correo=${s.correo}&comentarios=${encodeURIComponent(s.comentarios || '')}` +
                 `&area=${encodeURIComponent(s.area)}`;
             fetch(url).then(r => r.json())
-                .then(() => db.ref(`solicitudes/${id}/estado`).set('aprobado'))
+                .then(data => {
+                    if (!data.success) throw new Error(data.mensaje || 'No se pudo crear el evento en Calendar.');
+                    return db.ref(`solicitudes/${id}`).update({ estado: 'aprobado', resueltoEn: Date.now() });
+                })
                 .then(() => { alert('✅ Reserva aprobada y evento creado en Google Calendar'); })
-                .catch(() => { alert('Error al crear el evento en Calendar. La reserva no fue aprobada.'); })
+                .catch(err => { alert(`❌ ${err.message}\n\nLa reserva no fue aprobada.`); })
                 .finally(() => document.getElementById('loading').classList.remove('active'));
         }
 
@@ -608,8 +779,9 @@
                         `&evento=${encodeURIComponent(s.evento)}&nombre=${encodeURIComponent(s.nombre)}` +
                         `&correo=${s.correo}&comentarios=${encodeURIComponent(s.comentarios || '')}` +
                         `&area=${encodeURIComponent(s.area)}`;
-                    await fetch(url).then(r => r.json());
-                    await db.ref(`solicitudes/${id}/estado`).set('aprobado');
+                    const data = await fetch(url).then(r => r.json());
+                    if (!data.success) throw new Error(data.mensaje || 'Conflicto de horario');
+                    await db.ref(`solicitudes/${id}`).update({ estado: 'aprobado', resueltoEn: Date.now() });
                 } catch (e) { errores++; }
             }
 
@@ -625,6 +797,7 @@
 
             const snap = await db.ref('solicitudes').once('value');
             solicitudesData = snap.val() || {};
+            actualizarFiltroArea();
             renderizarSolicitudes();
             actualizarContadores();
         }
@@ -680,7 +853,7 @@
                 if (!s) continue;
                 const motivo = motivos[id];
                 try {
-                    await db.ref(`solicitudes/${id}`).update({ estado: 'rechazado', motivoRechazo: motivo });
+                    await db.ref(`solicitudes/${id}`).update({ estado: 'rechazado', motivoRechazo: motivo, resueltoEn: Date.now() });
                     fetch(`${APPS_URL}?modo=rechazar&id=${id}&motivo=${encodeURIComponent(motivo)}`).catch(console.error);
                 } catch (e) { errores++; }
             }
@@ -698,6 +871,7 @@
 
             const snap = await db.ref('solicitudes').once('value');
             solicitudesData = snap.val() || {};
+            actualizarFiltroArea();
             renderizarSolicitudes();
             actualizarContadores();
         }
@@ -728,22 +902,7 @@
 
         // ── DOMContentLoaded ──
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('btnLogout').addEventListener('click', () => {
-                detenerListener();
-                selectedIds.clear();
-                solicitudesData = {};
-                auth.signOut().then(() => {
-                    document.getElementById('loginContainer').classList.remove('hidden');
-                    document.getElementById('dashboard').classList.add('hidden');
-                    document.getElementById('changePasswordContainer').classList.add('hidden');
-                    document.getElementById('contenedor').innerHTML = '';
-                    document.getElementById('username').value = '';
-                    document.getElementById('password').value = '';
-                    document.getElementById('newPassword').value = '';
-                    document.getElementById('confirmPassword').value = '';
-                    document.getElementById('strengthBar').classList.add('hidden');
-                }).catch(err => alert('Error al cerrar sesión: ' + err.message));
-            });
+            document.getElementById('btnLogout').addEventListener('click', () => cerrarSesion(false));
 
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
